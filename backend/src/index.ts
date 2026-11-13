@@ -1,22 +1,26 @@
 import express from "express";
+import { env } from "./config/env.js";
 import bookRouter from "./routes/book.routes.js";
 import { requestLogger } from "./middleware/request-logger.middleware.js";
 import { errorHandler } from "./middleware/error-handler.middleware.js";
 import { notFound } from "./middleware/not-found.middleware.js";
+import { checkDatabaseConnection } from "./db.js";
 
 const app = express();
-
-const PORT = Number(process.env.PORT ?? 3000);
+const PORT = env.PORT;
 
 // This is middleware that parses incoming JSON request bodies and makes the parsed data available through req.body.
 app.use(express.json());
 app.use(requestLogger);
 
 // Health check endpoint
-app.get("/", (req, res) => {
-  res.status(200).json({
+// Health check endpoint.
+app.get("/", async (_req, res) => {
+  const databaseHealthy = await checkDatabaseConnection();
+  return res.status(databaseHealthy ? 200 : 503).json({
     message: "Welcome to BookNest API!",
-    status: "healthy",
+    status: databaseHealthy ? "healthy" : "unhealthy",
+    database: databaseHealthy ? "connected" : "disconnected",
   });
 });
 

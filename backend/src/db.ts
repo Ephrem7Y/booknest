@@ -1,14 +1,15 @@
 import mysql from "mysql2/promise";
 import { drizzle } from "drizzle-orm/mysql2";
 import * as schema from "./db/schema.js";
+import { env } from "./config/env.js";
 
 // Create a pool of reusable MySQL connections.
 const pool = mysql.createPool({
-  host: process.env.DB_HOST ?? "mysql",
-  port: Number(process.env.DB_PORT ?? 3306),
-  user: process.env.DB_USER ?? "booknest",
-  password: process.env.DB_PASSWORD ?? "booknestpassword",
-  database: process.env.DB_NAME ?? "booknest",
+  host: env.DB_HOST,
+  port: env.DB_PORT,
+  user: env.DB_USER,
+  password: env.DB_PASSWORD,
+  database: env.DB_NAME,
   connectionLimit: 10,
 });
 
@@ -18,5 +19,15 @@ const db = drizzle({
   schema,
   mode: "default",
 });
+
+// Check whether MySQL is reachable.
+export async function checkDatabaseConnection(): Promise<boolean> {
+  try {
+    await pool.query("SELECT 1");
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export default db;

@@ -7,25 +7,15 @@ import {
   deleteBook as deleteBookRecord,
 } from "../services/book.service.js";
 
+import {
+  type CreateBookInput,
+  type UpdateBookInput,
+  type BookIdParams,
+} from "../schemas/book.schema.js";
+
 import { AppError } from "../utils/app-error.js";
 import { catchAsync } from "../utils/catch-async.js";
 
-// Check whether a book price is valid.
-function isValidPrice(price: unknown): boolean {
-  if (typeof price !== "string" && typeof price !== "number") {
-    return false;
-  }
-
-  if (typeof price === "string" && price.trim() === "") {
-    return false;
-  }
-
-  const numericPrice = Number(price);
-
-  return Number.isFinite(numericPrice) && numericPrice >= 0;
-}
-
-// GET /books
 export const getBooks = catchAsync(async (_req, res) => {
   const allBooks = await getAllBooks();
 
@@ -36,25 +26,13 @@ export const getBooks = catchAsync(async (_req, res) => {
   });
 });
 
-// POST /books
 export const createBook = catchAsync(async (req, res) => {
-  const { title, description, price } = req.body ?? {};
-
-  if (
-    typeof title !== "string" ||
-    title.trim() === "" ||
-    !isValidPrice(price)
-  ) {
-    throw new AppError(
-      "A valid title and non-negative price are required.",
-      400,
-    );
-  }
+  const { title, description, price } = req.body as CreateBookInput;
 
   const bookId = await createBookRecord({
-    title: title.trim(),
-    description: typeof description === "string" ? description : null,
-    price: String(Number(price)),
+    title,
+    description: description ?? null,
+    price: String(price),
   });
 
   return res.status(201).json({
@@ -63,33 +41,18 @@ export const createBook = catchAsync(async (req, res) => {
   });
 });
 
-// PUT /books/:id
 export const updateBook = catchAsync(async (req, res) => {
-  const bookId = Number(req.params.id);
-  const { title, price } = req.body ?? {};
-
-  if (
-    !Number.isInteger(bookId) ||
-    bookId <= 0 ||
-    (title !== undefined &&
-      (typeof title !== "string" || title.trim() === "")) ||
-    (price !== undefined && !isValidPrice(price))
-  ) {
-    throw new AppError("Invalid book ID, title, or price.", 400);
-  }
-
-  if (title === undefined && price === undefined) {
-    throw new AppError("Provide at least one field to update.", 400);
-  }
+  const bookId = (res.locals.validatedParams as BookIdParams).id;
+  const { title, price } = req.body as UpdateBookInput;
 
   const updates: { title?: string; price?: string } = {};
 
   if (title !== undefined) {
-    updates.title = title.trim();
+    updates.title = title;
   }
 
   if (price !== undefined) {
-    updates.price = String(Number(price));
+    updates.price = String(price);
   }
 
   const affectedRows = await updateBookRecord(bookId, updates);
@@ -100,13 +63,8 @@ export const updateBook = catchAsync(async (req, res) => {
   });
 });
 
-// DELETE /books/:id
-export const deleteBook = catchAsync(async (req, res) => {
-  const bookId = Number(req.params.id);
-
-  if (!Number.isInteger(bookId) || bookId <= 0) {
-    throw new AppError("Invalid book ID.", 400);
-  }
+export const deleteBook = catchAsync(async (_req, res) => {
+  const bookId = (res.locals.validatedParams as BookIdParams).id;
 
   const affectedRows = await deleteBookRecord(bookId);
 

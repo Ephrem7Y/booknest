@@ -7,19 +7,35 @@ import {
   deleteBook,
 } from "../controllers/book.controller.js";
 
-// Create a separate router for book-related endpoints.
+import { validateRequest } from "../middleware/validate-request.middleware.js";
+
+import {
+  createBookSchema,
+  updateBookSchema,
+  bookIdParamSchema,
+} from "../schemas/book.schema.js";
+
 const bookRouter = Router();
 
-// GET /books
+// Retrieve all books.
 bookRouter.get("/", getBooks);
 
-// POST /books
-bookRouter.post("/", createBook);
+// Create a book after validating its request body.
+bookRouter.post("/", validateRequest(createBookSchema), createBook);
 
-// PUT /books/:id
-bookRouter.put("/:id", updateBook);
+// Update a book after validating its ID and request body.
+bookRouter.put(
+  "/:id",
+  validateRequest(bookIdParamSchema, "params"),
+  validateRequest(updateBookSchema),
+  updateBook,
+);
 
-// DELETE /books/:id
-bookRouter.delete("/:id", deleteBook);
+// Delete a book after validating its ID.
+bookRouter.delete(
+  "/:id",
+  validateRequest(bookIdParamSchema, "params"),
+  deleteBook,
+);
 
 export default bookRouter;

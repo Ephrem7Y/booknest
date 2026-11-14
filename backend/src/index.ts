@@ -1,6 +1,7 @@
 import express from "express";
 import { env } from "./config/env.js";
 import bookRouter from "./routes/book.routes.js";
+import authRouter from "./routes/auth-routes.js";
 import { requestLogger } from "./middleware/request-logger.middleware.js";
 import { errorHandler } from "./middleware/error-handler.middleware.js";
 import { notFound } from "./middleware/not-found.middleware.js";
@@ -26,6 +27,7 @@ app.get("/", async (_req, res) => {
 
 // Register application routes, express processes requests in the order they are registered, so the order of these calls matters.
 app.use("/books", bookRouter);
+app.use("/auth", authRouter);
 app.use(notFound);
 app.use(errorHandler);
 

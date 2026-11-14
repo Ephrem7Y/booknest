@@ -1,4 +1,3 @@
-
 import {
   mysqlTable,
   int,
@@ -8,6 +7,7 @@ import {
   date,
   timestamp,
   uniqueIndex,
+  mysqlEnum,
 } from "drizzle-orm/mysql-core";
 
 // ========================================
@@ -23,6 +23,8 @@ export const users = mysqlTable("users", {
 
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
 
+  role: mysqlEnum("role", ["customer", "admin"]).default("customer").notNull(),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
 
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
@@ -32,25 +34,25 @@ export const users = mysqlTable("users", {
 // 2. BOOKS TABLE
 // ========================================
 
-  export const books = mysqlTable("books", {
-    id: int("id").autoincrement().primaryKey(),
+export const books = mysqlTable("books", {
+  id: int("id").autoincrement().primaryKey(),
 
-    title: varchar("title", { length: 255 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
 
-    description: text("description"),
+  description: text("description"),
 
-    isbn: varchar("isbn", { length: 20 }),
+  isbn: varchar("isbn", { length: 20 }),
 
-    price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
 
-    coverImage: varchar("cover_image", { length: 500 }),
+  coverImage: varchar("cover_image", { length: 500 }),
 
-    publishedAt: date("published_at"),
+  publishedAt: date("published_at"),
 
-    createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 
-    updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-  });
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
 
 // ========================================
 // 3. AUTHORS TABLE
@@ -103,7 +105,7 @@ export const bookAuthors = mysqlTable(
   },
   (table) => [
     uniqueIndex("book_author_unique").on(table.bookId, table.authorId),
-  ]
+  ],
 );
 
 // ========================================
@@ -122,11 +124,8 @@ export const bookCategories = mysqlTable(
       .references(() => categories.id, { onDelete: "cascade" }),
   },
   (table) => [
-    uniqueIndex("book_category_unique").on(
-      table.bookId,
-      table.categoryId
-    ),
-  ]
+    uniqueIndex("book_category_unique").on(table.bookId, table.categoryId),
+  ],
 );
 
 // ========================================
@@ -165,9 +164,7 @@ export const cartItems = mysqlTable(
 
     quantity: int("quantity").notNull().default(1),
   },
-  (table) => [
-    uniqueIndex("cart_book_unique").on(table.cartId, table.bookId),
-  ]
+  (table) => [uniqueIndex("cart_book_unique").on(table.cartId, table.bookId)],
 );
 
 // ========================================
@@ -181,9 +178,7 @@ export const orders = mysqlTable("orders", {
     .notNull()
     .references(() => users.id),
 
-  status: varchar("status", { length: 30 })
-    .notNull()
-    .default("pending"),
+  status: varchar("status", { length: 30 }).notNull().default("pending"),
 
   totalAmount: decimal("total_amount", {
     precision: 10,
@@ -244,11 +239,8 @@ export const reviews = mysqlTable(
     updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
   },
   (table) => [
-    uniqueIndex("user_book_review_unique").on(
-      table.userId,
-      table.bookId
-    ),
-  ]
+    uniqueIndex("user_book_review_unique").on(table.userId, table.bookId),
+  ],
 );
 
 // ========================================
@@ -288,12 +280,11 @@ export const userBooks = mysqlTable(
       .notNull()
       .references(() => books.id),
 
-    orderItemId: int("order_item_id")
-      .references(() => orderItems.id, { onDelete: "set null" }),
+    orderItemId: int("order_item_id").references(() => orderItems.id, {
+      onDelete: "set null",
+    }),
 
     acquiredAt: timestamp("acquired_at").defaultNow().notNull(),
   },
-  (table) => [
-    uniqueIndex("user_book_unique").on(table.userId, table.bookId),
-  ]
+  (table) => [uniqueIndex("user_book_unique").on(table.userId, table.bookId)],
 );

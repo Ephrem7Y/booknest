@@ -1,10 +1,11 @@
 import { eq } from "drizzle-orm";
-
+import { env } from "../config/env.js";
 import db from "../db.js";
 import { users } from "../db/schema.js";
-import type { RegisterInput } from "../schemas/auth.schema.js";
+import type { LoginInput, RegisterInput } from "../schemas/auth.schema.js";
 import { AppError } from "../utils/app-error.js";
-import { hashPassword } from "../utils/password.js";
+import { signAccessToken } from "../utils/jwt.js";
+import { hashPassword, verifyPassword } from "../utils/password.js";
 
 const DUPLICATE_EMAIL_MESSAGE = "Email is already registered.";
 
@@ -67,4 +68,51 @@ export async function registerUser(input: RegisterInput) {
 
     throw error;
   }
+}
+
+const INVALID_CREDENTIALS_MESSAGE = "Invalid email or password.";
+
+// A real Argon2id hash of a throwaway password, created once when the module loads.
+// Login verifies against it when the email does not exist, so unknown emails cost the
+// same time as wrong passwords. Creating it with hashPassword keeps its settings in
+// sync with ours, even if we change them later.
+const DUMMY_PASSWORD_HASH = await hashPassword(
+  "not-a-real-password-used-only-for-timing",
+);
+
+// Checks credentials and returns a signed token plus the safe public user fields.
+export async function loginUser(input: LoginInput) {
+  const [user] = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+      passwordHash: users.passwordHash,
+    })
+    .from(users)
+    .where(eq(users.email, input.email))
+    .limit(1);
+
+  // Always run one verification, even when the email does not exist.
+  const hashToCheck = user?.passwordHash ?? DUMMY_PASSWORD_HASH;
+  const passwordMatches = await verifyPassword(hashToCheck, input.password);
+
+  // Same error and message for "no such user" and "wrong password".
+  if (!user || !passwordMatches) {
+    throw new AppError(INVALID_CREDENTIALS_MESSAGE, 401);
+  }
+
+  const token = await signAccessToken({ id: user.id, role: user.role });
+
+  return {
+    token,
+    expiresIn: env.JWT_EXPIRES_IN,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+  };
 }

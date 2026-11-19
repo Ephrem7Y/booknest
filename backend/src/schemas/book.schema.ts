@@ -9,14 +9,6 @@ export const createBookSchema = z.object({
 
 export type CreateBookInput = z.infer<typeof createBookSchema>;
 
-const newBook: CreateBookInput = {
-  title: "Clean Code",
-  description: "A handbook of software craftsmanship",
-  price: 25,
-};
-
-console.log("New book:", newBook);
-
 // Schema for updating an existing book.
 export const updateBookSchema = z
   .object({

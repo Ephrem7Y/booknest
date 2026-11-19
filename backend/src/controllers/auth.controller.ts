@@ -1,6 +1,11 @@
 import type { LoginInput, RegisterInput } from "../schemas/auth.schema.js";
-import { loginUser, registerUser } from "../services/auth.service.js";
+import {
+  getUserById,
+  loginUser,
+  registerUser,
+} from "../services/auth.service.js";
 import { catchAsync } from "../utils/catch-async.js";
+import type { AuthenticatedUser } from "../utils/jwt.js";
 
 // Handles POST /auth/register.
 export const register = catchAsync(async (req, res) => {
@@ -24,6 +29,17 @@ export const login = catchAsync(async (req, res) => {
     message: "Logged in successfully!",
     token,
     expiresIn,
+    user,
+  });
+});
+
+// Handles GET /auth/me.
+export const getCurrentUser = catchAsync(async (_req, res) => {
+  // authenticate has already verified the token and stored the identity here.
+  const { id } = res.locals.user as AuthenticatedUser;
+  const user = await getUserById(id);
+  return res.status(200).json({
+    message: "Current user retrieved successfully!",
     user,
   });
 });

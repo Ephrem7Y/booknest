@@ -8,24 +8,19 @@ import { signAccessToken } from "../utils/jwt.js";
 import { hashPassword, verifyPassword } from "../utils/password.js";
 
 const DUPLICATE_EMAIL_MESSAGE = "Email is already registered.";
-
 // Detects MySQL's "duplicate entry" error (code ER_DUP_ENTRY).
 // Drizzle can wrap the driver's error, so we also look inside nested causes.
 function isDuplicateEntryError(error: unknown): boolean {
   let current: unknown = error;
-
   for (let depth = 0; depth < 3; depth++) {
     if (typeof current !== "object" || current === null) {
       return false;
     }
-
     if ("code" in current && current.code === "ER_DUP_ENTRY") {
       return true;
     }
-
     current = "cause" in current ? current.cause : undefined;
   }
-
   return false;
 }
 
@@ -37,13 +32,10 @@ export async function registerUser(input: RegisterInput) {
     .from(users)
     .where(eq(users.email, input.email))
     .limit(1);
-
   if (existingUser) {
     throw new AppError(DUPLICATE_EMAIL_MESSAGE, 409);
   }
-
   const passwordHash = await hashPassword(input.password);
-
   try {
     const result = await db.insert(users).values({
       name: input.name,
@@ -52,7 +44,6 @@ export async function registerUser(input: RegisterInput) {
       // Set by the server, never by the client.
       role: "customer",
     });
-
     return {
       id: result[0].insertId,
       name: input.name,
@@ -65,13 +56,11 @@ export async function registerUser(input: RegisterInput) {
     if (isDuplicateEntryError(error)) {
       throw new AppError(DUPLICATE_EMAIL_MESSAGE, 409);
     }
-
     throw error;
   }
 }
 
 const INVALID_CREDENTIALS_MESSAGE = "Invalid email or password.";
-
 // A real Argon2id hash of a throwaway password, created once when the module loads.
 // Login verifies against it when the email does not exist, so unknown emails cost the
 // same time as wrong passwords. Creating it with hashPassword keeps its settings in
@@ -79,8 +68,8 @@ const INVALID_CREDENTIALS_MESSAGE = "Invalid email or password.";
 const DUMMY_PASSWORD_HASH = await hashPassword(
   "not-a-real-password-used-only-for-timing",
 );
-
 // Checks credentials and returns a signed token plus the safe public user fields.
+
 export async function loginUser(input: LoginInput) {
   const [user] = await db
     .select({
@@ -93,18 +82,14 @@ export async function loginUser(input: LoginInput) {
     .from(users)
     .where(eq(users.email, input.email))
     .limit(1);
-
   // Always run one verification, even when the email does not exist.
   const hashToCheck = user?.passwordHash ?? DUMMY_PASSWORD_HASH;
   const passwordMatches = await verifyPassword(hashToCheck, input.password);
-
   // Same error and message for "no such user" and "wrong password".
   if (!user || !passwordMatches) {
     throw new AppError(INVALID_CREDENTIALS_MESSAGE, 401);
   }
-
   const token = await signAccessToken({ id: user.id, role: user.role });
-
   return {
     token,
     expiresIn: env.JWT_EXPIRES_IN,
@@ -115,4 +100,22 @@ export async function loginUser(input: LoginInput) {
       role: user.role,
     },
   };
+}
+
+// Returns the current public fields of a user, or throws if the account no longer exists.
+export async function getUserById(userId: number) {
+  const [user] = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!user) {
+    throw new AppError("Account no longer exists.", 401);
+  }
+  return user;
 }
